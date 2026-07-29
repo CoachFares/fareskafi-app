@@ -7,9 +7,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, generateAccessToken } from '@/lib/supabase';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req: NextRequest) {
+  // ننشئ الاتصال بالبريد هنا داخل الدالة، مو أعلى الملف — عشان ما يحاول
+  // Next.js يشغّله وقت البناء نفسه (قبل ما تكون متغيرات البيئة جاهزة أصلًا).
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
   const form = await req.formData();
 
   // Gumroad يرسل بيانات البيع كـ form-data — نلتقط اللي يهمنا فقط
