@@ -1,7 +1,7 @@
 // هذا الـ endpoint يستقبل إشارة من Gumroad كل ما يصير بيع جديد ("Ping").
 // وظيفته: يتأكد إن البيع حقيقي، يسوي عميل جديد + رمز وصول، ويرسل له بريد الدخول.
 // هذا هو المكان الوحيد في المشروع اللي "يعرف" إن Gumroad موجود —
-// لو انتقلت لاحقًا لـ Stripe، تبدّل هذا الملف فقط، ولا شيء غيره.
+// لو انتقلت لاحقا لـ Stripe، تبدل هذا الملف فقط، ولا شيء غيره.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, generateAccessToken } from '@/lib/supabase';
@@ -9,7 +9,7 @@ import { Resend } from 'resend';
 
 export async function POST(req: NextRequest) {
   // ننشئ الاتصال بالبريد هنا داخل الدالة، مو أعلى الملف — عشان ما يحاول
-  // Next.js يشغّله وقت البناء نفسه (قبل ما تكون متغيرات البيئة جاهزة أصلًا).
+  // Next.js يشغله وقت البناء نفسه (قبل ما تكون متغيرات البيئة جاهزة أصلا).
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const form = await req.formData();
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const saleId = form.get('sale_id') as string;
   const productPermalink = form.get('permalink') as string;
 
-  // تحقق أساسي: هذا فعلًا منتجنا، ومو تكرار لعملية شراء سبق واستلمناها
+  // تحقق أساسي: هذا فعلا منتجنا، ومو تكرار لعملية شراء سبق واستلمناها
   if (productPermalink !== process.env.GUMROAD_PRODUCT_PERMALINK) {
     return NextResponse.json({ ok: false, reason: 'product mismatch' }, { status: 400 });
   }
@@ -43,14 +43,14 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    // لو صار خطأ هنا، Gumroad يحاول يرسل نفس الإشارة مرة ثانية تلقائيًا لاحقًا
+    // لو صار خطأ هنا، Gumroad يحاول يرسل نفس الإشارة مرة ثانية تلقائيا لاحقا
     return NextResponse.json({ ok: false, reason: error.message }, { status: 500 });
   }
 
   const accessUrl = `https://${process.env.APP_DOMAIN}/start?token=${accessToken}`;
 
   await resend.emails.send({
-    from: 'Coach Fares <hello@fareskafi.com>',
+    from: process.env.EMAIL_FROM || 'Coach Fares <onboarding@resend.dev>',
     to: email,
     subject: 'رابطك الخاص جاهز — ابدأ رحلتك الآن',
     html: `
