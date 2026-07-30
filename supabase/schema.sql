@@ -17,6 +17,7 @@ create table journeys (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid references customers(id) on delete cascade,
   status text default 'in_progress',      -- in_progress | completed
+  working_hypothesis text,                -- خيط تشخيصي متراكم، يتحدث بعد كل محطة ويوجه الأسئلة التالية
   created_at timestamptz default now(),
   completed_at timestamptz
 );
@@ -43,7 +44,32 @@ create table reports (
   created_at timestamptz default now()
 );
 
--- حماية على مستوى الصفوف: كل عميل يشوف بياناته هو فقط
+-- محادثة كل محطة (١ إلى ٥) قد تحتاج أكثر من سؤال واحد حتى تغطي كل جوانبها
+create table if not exists station_exchanges (
+  id uuid primary key default gen_random_uuid(),
+  journey_id uuid references journeys(id) on delete cascade,
+  stage_id int not null,
+  exchange_index int not null,
+  question_text text not null,
+  answer_text text not null,
+  created_at timestamptz default now(),
+  unique (journey_id, stage_id, exchange_index)
+);
+alter table station_exchanges enable row level security;
+
+-- ملخص متماسك واحد لكل محطة، يبنى من كل التبادلات داخلها، ويستخدم في التقرير والتحليل النهائي
+create table if not exists station_summaries (
+  id uuid primary key default gen_random_uuid(),
+  journey_id uuid references journeys(id) on delete cascade,
+  stage_id int not null,
+  summary text not null,
+  created_at timestamptz default now(),
+  unique (journey_id, stage_id)
+);
+alter table station_summaries enable row level security;
+
+-- ملاحظة: الجدولان أعلاه إضافيان بالكامل، ولا يمسان جدول journey_answers
+-- الموجود ولا أي قيد فيه — هذا يجعل تشغيل هذا الملف آمنا حتى لو نفذته أكثر من مرة.
 alter table customers enable row level security;
 alter table journeys enable row level security;
 alter table journey_answers enable row level security;
