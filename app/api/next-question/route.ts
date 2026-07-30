@@ -51,7 +51,10 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('').trim();
-    const intro = raw.replace(/^["'«]+|["'»]+$/g, '').trim();
+    const intro = raw
+      .replace(/^\{?\s*"?(intro|narrative)"?\s*:\s*/i, '')
+      .replace(/^["'«]+|["'»]+\}?\s*$/g, '')
+      .trim();
     if (!intro) {
       const blockTypes = (data.content || []).map((b: { type?: string }) => b.type).join(',');
       throw new Error(`رد فارغ من النموذج (stop_reason: ${data.stop_reason}, blocks: ${blockTypes})`);
