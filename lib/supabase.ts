@@ -1,6 +1,6 @@
 // هذا الملف هو نقطة الاتصال الوحيدة بقاعدة البيانات.
-// يُستخدم فقط داخل API routes (على السيرفر) — أبدًا داخل صفحات تعرض في المتصفح.
-// المفتاح المستخدم هنا (SERVICE_ROLE_KEY) قوي جدًا، لهذا لازم يبقى سرًا في متغيرات البيئة فقط.
+// يستخدم فقط داخل API routes (على السيرفر) — أبدا داخل صفحات تعرض في المتصفح.
+// المفتاح المستخدم هنا (SERVICE_ROLE_KEY) قوي جدا، لهذا لازم يبقى سرا في متغيرات البيئة فقط.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,7 +11,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false },
 });
 
-// دالة صغيرة تولّد رمز وصول عشوائي طويل يصعب تخمينه (يُستخدم في رابط العميل)
+// دالة صغيرة تولد رمز وصول عشوائي طويل يصعب تخمينه (يستخدم في رابط العميل)
 export function generateAccessToken(): string {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
