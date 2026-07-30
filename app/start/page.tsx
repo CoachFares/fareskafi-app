@@ -137,6 +137,8 @@ export default function StartPage() {
       .then((data) => {
         setCurQ(data.ok ? data.question : 'صف بصدق ما يخطر ببالك حول هذه المحطة.');
         if (stageId === 6 && data.narrative) setCurReflection(data.narrative);
+        if (data.source === 'fallback' && data.reason) setDebugInfo(`[فتح محطة ${stageId}]: ${data.reason}`);
+        else setDebugInfo('');
         setQState('ready');
       })
       .catch(() => { setCurQ('صف بصدق ما يخطر ببالك حول هذه المحطة.'); setQState('ready'); });
