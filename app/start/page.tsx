@@ -17,7 +17,7 @@ const LIFE_STAGES = [
   'أنا في بداية علاقة جديدة',
 ];
 
-const MIN_ANSWER_LENGTH = 15;
+const MIN_ANSWER_LENGTH = 25;
 const STATION_CAP = 4;
 
 const CSS = `
@@ -181,6 +181,7 @@ export default function StartPage() {
     const data = await res.json();
 
     if (data.done) {
+      if (data.reason) setDebugInfo(`[محطة ${stageId}]: ${data.reason}`);
       setCur((c) => c + 1);
       return;
     }
@@ -337,6 +338,7 @@ export default function StartPage() {
             </>
           )}
         </div>
+        {debugInfo && <div style={{ fontSize: 10, color: '#a9832f', textAlign: 'center', marginTop: 10, direction: 'ltr' }}>{debugInfo}</div>}
         <Rights />
       </div>
     </>
