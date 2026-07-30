@@ -1,6 +1,8 @@
 // يفتح محطة من المحطات ١ إلى ٥ بسؤالها الأول، مبنيا على ملخصات المحطات السابقة لها.
 // لو فشل الاتصال بالذكاء الاصطناعي، يرجع سؤالا احتياطيا جاهزا حتى لا تتوقف الرحلة.
 
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { buildStationOpenPrompt, STAGES, lifeStageFrom, StageAnswer, Summary } from '@/lib/reportEngine';
