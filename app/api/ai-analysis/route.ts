@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
   const prompt = buildAiPrompt(summaries, finalAnswer, lifeStage);
 
   let response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
   try {
     response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -43,8 +45,11 @@ export async function POST(req: NextRequest) {
         max_tokens: 700,
         messages: [{ role: 'user', content: prompt }],
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
   } catch (err) {
+    clearTimeout(timeoutId);
     return NextResponse.json({ ok: false, reason: 'تعذر الاتصال بخدمة الذكاء الاصطناعي: ' + String(err) }, { status: 502 });
   }
 
