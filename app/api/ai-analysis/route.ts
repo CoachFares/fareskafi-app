@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
   const lifeStage = lifeStageFrom((sideAnswers || []) as StageAnswer[]);
   const finalAnswer = finalAnswerFrom((sideAnswers || []) as StageAnswer[]);
 
-  const prompt = buildAiPrompt(summaries, finalAnswer, lifeStage);
+  const { data: journeyRow } = await supabaseAdmin
+    .from('journeys').select('working_hypothesis').eq('id', journeyId).maybeSingle();
+  const workingHypothesis = journeyRow?.working_hypothesis || '';
+
+  const prompt = buildAiPrompt(summaries, finalAnswer, lifeStage, workingHypothesis);
 
   let response;
   const controller = new AbortController();
