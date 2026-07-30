@@ -64,7 +64,10 @@ export async function POST(req: NextRequest) {
 
   const data = await response.json();
   const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('\n').trim();
-  const text = raw.replace(/^["'«]+|["'»]+$/g, '').trim();
+  const text = raw
+    .replace(/^\{?\s*"?narrative"?\s*:\s*/i, '')
+    .replace(/^["'«]+|["'»]+\}?\s*$/g, '')
+    .trim();
 
   if (!text) {
     return NextResponse.json({ ok: false, reason: 'رد فارغ من النموذج' }, { status: 502 });
