@@ -2,6 +2,8 @@
 // المحطة بملخص واحد يحفظ في station_summaries. لو فشل الاتصال، ينهي المحطة بملخص
 // بسيط مبني على الإجابات كما هي، حتى لا تتوقف الرحلة أبدا.
 
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { buildStationTurnPrompt, STATION_CAP, STAGES, lifeStageFrom, StageAnswer, Summary, Exchange } from '@/lib/reportEngine';
