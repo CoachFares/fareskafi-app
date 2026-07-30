@@ -52,7 +52,9 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('').trim();
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(cleaned);
+    let parsed;
+    try { parsed = JSON.parse(cleaned); }
+    catch { parsed = JSON.parse(cleaned.replace(/[\n\r\t]+/g, ' ')); }
     if (!parsed.intro) throw new Error('لا يوجد نص في الرد');
 
     return NextResponse.json({ ok: true, question: stage.fallbackQ, narrative: parsed.intro, source: 'ai' });
