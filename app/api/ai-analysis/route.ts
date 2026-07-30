@@ -1,11 +1,51 @@
-// هذا هو "خيار التحليل بالذكاء الاصطناعي" — يظهر كزر اختياري بعد التقرير الأساسي.
-// الفرق عن محاولتنا الأولى (بالأداة المستقلة): مفتاح الذكاء الاصطناعي هنا محفوظ
-// بمتغيرات البيئة على السيرفر فقط، وما يوصل لمتصفح العميل إطلاقا — هذا هو
-// السبب اللي كان يخلي الطريقة القديمة ما تشتغل، وهنا تشتغل بأمان كامل.
+// هذا هو التحليل الشخصي النهائي — أهم مخرج بالأداة كلها، فهذا الملف يحاول مرتين
+// قبل ما يستسلم، ويعطي مساحة كبيرة للنموذج (تفكير داخلي + كتابة الفقرات الفعلية).
+
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { buildAiPrompt, lifeStageFrom, finalAnswerFrom, StageAnswer, Summary } from '@/lib/reportEngine';
+
+async function callClaude(prompt: string, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      const errBody = await response.text();
+      return { ok: false, reason: `فشل الطلب (${response.status}): ${errBody.slice(0, 200)}` };
+    }
+    const data = await response.json();
+    const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('\n').trim();
+    const text = raw
+      .replace(/^\{?\s*"?narrative"?\s*:\s*/i, '')
+      .replace(/^["'«]+|["'»]+\}?\s*$/g, '')
+      .trim();
+    if (!text) {
+      const blockTypes = (data.content || []).map((b: { type?: string }) => b.type).join(',');
+      return { ok: false, reason: `رد فارغ (stop_reason: ${data.stop_reason}, blocks: ${blockTypes})` };
+    }
+    return { ok: true, text };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    return { ok: false, reason: 'تعذر الاتصال: ' + String(err) };
+  }
+}
 
 export async function POST(req: NextRequest) {
   const { token, journeyId } = await req.json();
@@ -33,49 +73,19 @@ export async function POST(req: NextRequest) {
 
   const prompt = buildAiPrompt(summaries, finalAnswer, lifeStage, workingHypothesis);
 
-  let response;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
-  try {
-    response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 3000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-  } catch (err) {
-    clearTimeout(timeoutId);
-    return NextResponse.json({ ok: false, reason: 'تعذر الاتصال بخدمة الذكاء الاصطناعي: ' + String(err) }, { status: 502 });
+  // محاولة أولى بمهلة معتدلة، فمحاولة ثانية بمهلة أطول إن فشلت الأولى لأي سبب
+  let result = await callClaude(prompt, 25000);
+  if (!result.ok) {
+    result = await callClaude(prompt, 40000);
   }
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    return NextResponse.json({ ok: false, reason: `فشل الطلب (${response.status}): ${errBody.slice(0, 200)}` }, { status: 502 });
-  }
-
-  const data = await response.json();
-  const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('\n').trim();
-  const text = raw
-    .replace(/^\{?\s*"?narrative"?\s*:\s*/i, '')
-    .replace(/^["'«]+|["'»]+\}?\s*$/g, '')
-    .trim();
-
-  if (!text) {
-    return NextResponse.json({ ok: false, reason: 'رد فارغ من النموذج' }, { status: 502 });
+  if (!result.ok) {
+    return NextResponse.json({ ok: false, reason: result.reason }, { status: 502 });
   }
 
   await supabaseAdmin
     .from('reports')
-    .upsert({ journey_id: journeyId, ai_analysis: text, ai_generated_at: new Date().toISOString() }, { onConflict: 'journey_id' });
+    .upsert({ journey_id: journeyId, ai_analysis: result.text, ai_generated_at: new Date().toISOString() }, { onConflict: 'journey_id' });
 
-  return NextResponse.json({ ok: true, analysis: text });
+  return NextResponse.json({ ok: true, analysis: result.text });
 }
