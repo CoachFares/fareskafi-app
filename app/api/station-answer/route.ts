@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     const grab = (label: string): string => {
       const re = new RegExp(label + ':\\s*([^\\n]*(?:\\n(?!(?:DONE|REFLECTION|QUESTION|SUMMARY|HYPOTHESIS):)[^\\n]*)*)', 'i');
       const m = raw.match(re);
-      return m ? m[1].trim() : '';
+      return m ? m[1].trim().replace(/^["'«]+|["'»]+$/g, '').trim() : '';
     };
 
     const isDone = /DONE:\s*true/i.test(raw);
