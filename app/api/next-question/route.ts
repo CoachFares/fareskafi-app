@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 200, messages: [{ role: 'user', content: prompt }] }),
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -52,7 +52,10 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('').trim();
     const intro = raw.replace(/^["'«]+|["'»]+$/g, '').trim();
-    if (!intro) throw new Error('رد فارغ من النموذج');
+    if (!intro) {
+      const blockTypes = (data.content || []).map((b: { type?: string }) => b.type).join(',');
+      throw new Error(`رد فارغ من النموذج (stop_reason: ${data.stop_reason}, blocks: ${blockTypes})`);
+    }
 
     return NextResponse.json({ ok: true, question: stage.fallbackQ, narrative: intro, source: 'ai' });
   } catch (err) {
