@@ -15,52 +15,53 @@ const LIFE_STAGES = [
   'أنا أمر بانفصال مؤلم',
   'أنا في علاقة لكنني في حيرة',
   'أنا في بداية علاقة جديدة',
+  'لست في علاقة حاليا، وأريد أن أفهم نفسي في العلاقات',
 ];
 
 const MIN_ANSWER_LENGTH = 25;
 const STATION_CAP = 4;
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Markazi+Text:wght@500;600;700&family=Tajawal:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
 * { box-sizing: border-box; }
 body { background:#f3f4f6; margin:0; }
 .stage { position:relative; max-width:760px; margin:0 auto; background:#ffffff; padding:44px 32px 40px; min-height:100vh; font-family:'Tajawal',sans-serif; direction:rtl; }
-.eyebrow { font-family:'Markazi Text',serif; font-size:13px; letter-spacing:3px; color:#a9832f; text-align:center; margin-bottom:6px; }
-.h1 { font-family:'Aref Ruqaa',serif; font-weight:700; font-size:28px; color:#0f2847; text-align:center; }
+.eyebrow { font-family:'Tajawal',sans-serif; font-size:13px; letter-spacing:3px; color:#a9832f; text-align:center; margin-bottom:6px; }
+.h1 { font-family:'Tajawal',sans-serif; font-weight:700; font-size:26px; color:#0f2847; text-align:center; }
 .progress { display:flex; justify-content:center; gap:8px; margin:24px 0 8px; }
 .dot { width:14px; height:14px; border-radius:50%; }
-.subprogress { text-align:center; font-family:'Markazi Text',serif; font-size:12px; color:#9aa3b0; margin-bottom:22px; }
+.subprogress { text-align:center; font-family:'Tajawal',sans-serif; font-size:12px; color:#9aa3b0; margin-bottom:22px; }
 .card { background:#ffffff; border:1.6px solid #dfe3ea; border-radius:14px; padding:32px 30px; box-shadow:0 2px 18px rgba(15,40,71,0.05); min-height:260px; }
-.kicker { font-family:'Markazi Text',serif; font-size:14px; letter-spacing:2px; color:#a9832f; text-align:center; }
-.title { font-family:'Aref Ruqaa',serif; font-weight:700; font-size:24px; color:#0f2847; text-align:center; margin-top:6px; }
-.narrative { font-family:'Markazi Text',serif; font-size:16px; color:#5c6b80; text-align:center; margin:10px 0 24px; }
+.kicker { font-family:'Tajawal',sans-serif; font-size:14px; letter-spacing:2px; color:#a9832f; text-align:center; }
+.title { font-family:'Tajawal',sans-serif; font-weight:700; font-size:21px; color:#0f2847; text-align:center; margin-top:6px; }
+.narrative { font-family:'Tajawal',sans-serif; font-size:16px; color:#5c6b80; text-align:center; margin:10px 0 24px; }
 .qtext { font-family:'Tajawal',sans-serif; font-size:15.5px; color:#0f2847; text-align:center; margin-bottom:18px; line-height:1.8; }
-.orlabel { text-align:center; font-family:'Markazi Text',serif; font-size:13px; color:#9aa3b0; margin-bottom:10px; }
+.orlabel { text-align:center; font-family:'Tajawal',sans-serif; font-size:13px; color:#9aa3b0; margin-bottom:10px; }
 .reflectbubble { background:#fbf5e6; border-right:3px solid #c6a15b; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-family:'Tajawal',sans-serif; font-size:13.5px; color:#5c4a1a; line-height:1.8; }
 .nudge { font-family:'Tajawal',sans-serif; font-size:12px; color:#a9832f; text-align:center; margin-top:8px; }
 .reflect { width:100%; border:1.4px solid #dfe3ea; border-radius:9px; padding:14px 16px; font-family:'Tajawal',sans-serif; font-size:14px; color:#0f2847; background:#fff; resize:vertical; }
 .reflect:focus { outline:none; border-color:#c6a15b; }
 .navrow { display:flex; gap:12px; margin-top:26px; }
-.btn { flex:1; padding:13px; border-radius:8px; font-family:'Markazi Text',serif; font-weight:700; font-size:16px; cursor:pointer; border:none; }
+.btn { flex:1; padding:13px; border-radius:8px; font-family:'Tajawal',sans-serif; font-weight:700; font-size:16px; cursor:pointer; border:none; }
 .btn.solid { background:#0f2847; color:#f4d78a; }
 .btn.solid:hover { background:#163a63; }
 .btn.solid:disabled { opacity:.5; cursor:default; }
 .btn.outline { background:transparent; color:#0f2847; border:1.6px solid #0f2847; }
-.center { text-align:center; padding-top:120px; color:#0f2847; font-family:'Markazi Text',serif; font-size:18px; }
-.centersmall { text-align:center; padding:60px 0; color:#5c6b80; font-family:'Markazi Text',serif; font-size:15px; }
+.center { text-align:center; padding-top:120px; color:#0f2847; font-family:'Tajawal',sans-serif; font-size:18px; }
+.centersmall { text-align:center; padding:60px 0; color:#5c6b80; font-family:'Tajawal',sans-serif; font-size:15px; }
 .spinner { width:38px; height:38px; border:3px solid #e8e2d0; border-top-color:#c6a15b; border-radius:50%; margin:0 auto 18px; animation:spin 1s linear infinite; }
 .spinnersm { width:26px; height:26px; border:2.5px solid #e8e2d0; border-top-color:#c6a15b; border-radius:50%; margin:0 auto 12px; animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .rcard { background:#ffffff; border:1.6px solid #dfe3ea; border-radius:14px; padding:24px 26px; margin-bottom:16px; }
 .rcard.primary { background:#fbf5e6; border:2px solid #c6a15b; }
-.rk { font-family:'Markazi Text',serif; font-weight:700; font-size:15px; color:#a9832f; margin-bottom:6px; }
+.rk { font-family:'Tajawal',sans-serif; font-weight:700; font-size:15px; color:#a9832f; margin-bottom:6px; }
 .rk.dark { color:#0f2847; }
 .rtext { font-family:'Tajawal',sans-serif; font-size:14px; color:#0f2847; line-height:1.9; }
-.quote { font-family:'Markazi Text',serif; font-style:italic; font-size:16px; color:#5c6b80; border-right:3px solid #c6a15b; padding-right:14px; }
+.quote { font-family:'Tajawal',sans-serif; font-style:italic; font-size:16px; color:#5c6b80; border-right:3px solid #c6a15b; padding-right:14px; }
 .sig { text-align:center; margin-top:36px; }
-.signame { font-family:'Aref Ruqaa',serif; font-weight:700; font-style:italic; font-size:22px; color:#0f2847; }
+.signame { font-family:'Tajawal',sans-serif; font-weight:700; font-style:italic; font-size:22px; color:#0f2847; }
 .sigrule { width:100px; height:1px; background:#c6a15b; margin:9px auto; }
-.sigar { font-family:'Markazi Text',serif; font-size:14px; color:#5c6b80; }
+.sigar { font-family:'Tajawal',sans-serif; font-size:14px; color:#5c6b80; }
 .rights { font-family:'Tajawal',sans-serif; font-size:11px; color:#9aa3b0; margin-top:10px; }
 .lifecard { border:1.6px solid #dfe3ea; border-radius:12px; padding:18px 20px; margin-bottom:12px; cursor:pointer; font-family:'Tajawal',sans-serif; font-size:15px; color:#0f2847; text-align:center; transition:all .15s; }
 .lifecard.sel { background:#0f2847; border-color:#0f2847; color:#f4d78a; }
@@ -226,9 +227,16 @@ export default function StartPage() {
         <Style />
         <div className="stage">
           <div className="eyebrow">HS–01 · قبل أن نبدأ</div>
-          <div className="h1" style={{ marginBottom: 26 }}>أين أنت الآن؟</div>
+          <div className="h1" style={{ marginBottom: 18 }}>خريطة الوعي بالعلاقة</div>
+          <div className="rcard" style={{ marginBottom: 22 }}>
+            <div className="rtext">
+              أنت مقبل على رحلة تأملية من ست محطات، كل محطة تطرح عليك أسئلة قد تحتاج منك صدقا أكثر من المعتاد. لا توجد إجابات صحيحة أو خاطئة هنا، والأداة أحيانا تعيد سؤالك بصياغة أخرى إن شعرت أن إجابتك تحتاج تفصيلا أكثر — هذا مقصود، لا خطأ تقني.
+              <br /><br />
+              خذ وقتك، اكتب بصدق، وفي النهاية ستحصل على خريطة شخصية مبنية بالكامل على كلماتك أنت.
+            </div>
+          </div>
           <div className="card">
-            <div className="narrative" style={{ marginBottom: 22 }}>هذا يساعدنا نوجه رحلتك بما يناسب مكانك الحالي تحديدا</div>
+            <div className="narrative" style={{ marginBottom: 22 }}>أولا، هذا يساعدنا نوجه رحلتك بما يناسب مكانك الحالي تحديدا</div>
             {LIFE_STAGES.map((l) => (
               <div key={l} className={`lifecard${lifeStage === l ? ' sel' : ''}`} onClick={() => setLifeStage(l)}>{l}</div>
             ))}
@@ -267,19 +275,16 @@ export default function StartPage() {
           </div>
 
           <div className="rcard primary">
-            <div className="rk dark">تحليلك الشخصي</div>
-            {aiState !== 'done' && <div className="center" style={{ paddingTop: 16, paddingBottom: 8 }}><div className="spinner" />نكتب تحليلك الآن…</div>}
-            {aiState === 'done' && <div className="rtext" style={{ fontSize: 15, lineHeight: 2 }}>{aiText}</div>}
+            <div className="rk dark">خريطة الوعي بالعلاقة</div>
+            {aiState !== 'done' && <div className="center" style={{ paddingTop: 16, paddingBottom: 8 }}><div className="spinner" />نكتب خريطتك الآن…</div>}
+            {aiState === 'done' && aiText.split(/\n\s*\n/).map((p, i) => (
+              <p key={i} className="rtext" style={{ fontSize: 15, lineHeight: 2, marginTop: i > 0 ? 16 : 0 }}>{p.trim()}</p>
+            ))}
           </div>
 
           {report.finalAnswer && (
             <div className="rcard"><div className="rk">جوابك الكامل، بكلماتك أنت</div><div className="quote">&quot;{report.finalAnswer}&quot;</div></div>
           )}
-
-          <div className="orlabel" style={{ margin: '22px 0 14px' }}>تفاصيل رحلتك، محطة بمحطة</div>
-          {report.sections.map((s: any) => (
-            <div className="rcard" key={s.key}><div className="rk">{s.key}</div><div className="rtext">{s.text}</div></div>
-          ))}
 
           <div className="sig">
             <div className="signame">Fares Kafi</div>
