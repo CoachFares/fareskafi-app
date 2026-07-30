@@ -17,7 +17,8 @@ const LIFE_STAGES = [
   'أنا في بداية علاقة جديدة',
 ];
 
-type Answers = Record<number, { chips: string[]; text: string; question?: string }>;
+const MIN_ANSWER_LENGTH = 15;
+const STATION_CAP = 4;
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Markazi+Text:wght@500;600;700&family=Tajawal:wght@400;500;700&display=swap');
@@ -26,14 +27,17 @@ body { background:#f3f4f6; margin:0; }
 .stage { position:relative; max-width:760px; margin:0 auto; background:#ffffff; padding:44px 32px 40px; min-height:100vh; font-family:'Tajawal',sans-serif; direction:rtl; }
 .eyebrow { font-family:'Markazi Text',serif; font-size:13px; letter-spacing:3px; color:#a9832f; text-align:center; margin-bottom:6px; }
 .h1 { font-family:'Aref Ruqaa',serif; font-weight:700; font-size:28px; color:#0f2847; text-align:center; }
-.progress { display:flex; justify-content:center; gap:8px; margin:24px 0 30px; }
+.progress { display:flex; justify-content:center; gap:8px; margin:24px 0 8px; }
 .dot { width:14px; height:14px; border-radius:50%; }
+.subprogress { text-align:center; font-family:'Markazi Text',serif; font-size:12px; color:#9aa3b0; margin-bottom:22px; }
 .card { background:#ffffff; border:1.6px solid #dfe3ea; border-radius:14px; padding:32px 30px; box-shadow:0 2px 18px rgba(15,40,71,0.05); min-height:260px; }
 .kicker { font-family:'Markazi Text',serif; font-size:14px; letter-spacing:2px; color:#a9832f; text-align:center; }
 .title { font-family:'Aref Ruqaa',serif; font-weight:700; font-size:24px; color:#0f2847; text-align:center; margin-top:6px; }
 .narrative { font-family:'Markazi Text',serif; font-size:16px; color:#5c6b80; text-align:center; margin:10px 0 24px; }
 .qtext { font-family:'Tajawal',sans-serif; font-size:15.5px; color:#0f2847; text-align:center; margin-bottom:18px; line-height:1.8; }
 .orlabel { text-align:center; font-family:'Markazi Text',serif; font-size:13px; color:#9aa3b0; margin-bottom:10px; }
+.reflectbubble { background:#fbf5e6; border-right:3px solid #c6a15b; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-family:'Tajawal',sans-serif; font-size:13.5px; color:#5c4a1a; line-height:1.8; }
+.nudge { font-family:'Tajawal',sans-serif; font-size:12px; color:#a9832f; text-align:center; margin-top:8px; }
 .reflect { width:100%; border:1.4px solid #dfe3ea; border-radius:9px; padding:14px 16px; font-family:'Tajawal',sans-serif; font-size:14px; color:#0f2847; background:#fff; resize:vertical; }
 .reflect:focus { outline:none; border-color:#c6a15b; }
 .navrow { display:flex; gap:12px; margin-top:26px; }
@@ -71,7 +75,6 @@ export default function StartPage() {
   const [token, setToken] = useState('');
   const [journeyId, setJourneyId] = useState('');
   const [cur, setCur] = useState(0);
-  const [answers, setAnswers] = useState<Answers>({});
   const [lifeStage, setLifeStage] = useState('');
   const [draftText, setDraftText] = useState('');
   const [report, setReport] = useState<any>(null);
@@ -79,8 +82,11 @@ export default function StartPage() {
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done'>('idle');
   const [aiText, setAiText] = useState('');
   const [nextAvailable, setNextAvailable] = useState('');
-  const [qState, setQState] = useState<'loading' | 'ready'>('loading');
-  const [curQ, setCurQ] = useState<{ narrative: string; question: string }>({ narrative: '', question: '' });
+
+  const [qState, setQState] = useState<'loading' | 'ready' | 'submitting'>('loading');
+  const [curQ, setCurQ] = useState('');
+  const [curReflection, setCurReflection] = useState('');
+  const [exchangeIndex, setExchangeIndex] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -88,8 +94,7 @@ export default function StartPage() {
     if (!t) { setPhase('invalid'); return; }
     setToken(t);
     fetch('/api/start-journey', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: t }),
     })
       .then(async (r) => {
@@ -108,11 +113,8 @@ export default function StartPage() {
         }
 
         setJourneyId(data.journeyId);
-        const loaded: Answers = {};
-        (data.answers || []).forEach((a: any) => { loaded[a.stage_id] = { chips: a.chips || [], text: a.free_text || '', question: a.question_text || '' }; });
-        setAnswers(loaded);
-        const savedLifeStage = loaded[0]?.text;
-        if (savedLifeStage) { setLifeStage(savedLifeStage); setCur(data.resumeStage || 0); setPhase('journey'); }
+        const life = (data.answers || []).find((a: any) => a.stage_id === 0);
+        if (life?.free_text) { setLifeStage(life.free_text); setCur(data.resumeStage || 0); setPhase('journey'); }
         else { setPhase('intro'); }
       })
       .catch((err) => { setDebugInfo(String(err)); setPhase('invalid'); });
@@ -121,30 +123,22 @@ export default function StartPage() {
   useEffect(() => {
     if (phase !== 'journey') return;
     const stageId = STAGES[cur].id;
-    const saved = answers[stageId];
-    setDraftText(saved?.text || '');
-
-    if (saved?.question) {
-      setCurQ({ narrative: '', question: saved.question });
-      setQState('ready');
-      return;
-    }
-
+    setDraftText('');
+    setExchangeIndex(0);
+    setCurReflection('');
     setQState('loading');
-    fetch('/api/next-question', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, journeyId, stageId }),
-    })
+
+    const endpoint = stageId === 6 ? '/api/next-question' : '/api/station-open';
+    const body = stageId === 6 ? { token, journeyId } : { token, journeyId, stageId };
+
+    fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then((r) => r.json())
       .then((data) => {
-        const q = data.ok ? { narrative: data.narrative || '', question: data.question } : { narrative: '', question: 'صف بصدق ما يخطر ببالك حول هذه المحطة.' };
-        setCurQ(q);
+        setCurQ(data.ok ? data.question : 'صف بصدق ما يخطر ببالك حول هذه المحطة.');
+        if (stageId === 6 && data.narrative) setCurReflection(data.narrative);
         setQState('ready');
       })
-      .catch(() => {
-        setCurQ({ narrative: '', question: 'صف بصدق ما يخطر ببالك حول هذه المحطة.' });
-        setQState('ready');
-      });
+      .catch(() => { setCurQ('صف بصدق ما يخطر ببالك حول هذه المحطة.'); setQState('ready'); });
   }, [cur, phase]);
 
   async function confirmLifeStage() {
@@ -156,32 +150,47 @@ export default function StartPage() {
     setPhase('journey');
   }
 
-  async function saveCurrent() {
-    const stageId = STAGES[cur].id;
-    setAnswers((prev) => ({ ...prev, [stageId]: { chips: [], text: draftText, question: curQ.question } }));
-    await fetch('/api/save-answer', {
+  async function finishToReport() {
+    setPhase('building');
+    const res = await fetch('/api/generate-report', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, journeyId, stageId, chips: [], freeText: draftText, questionText: curQ.question }),
+      body: JSON.stringify({ token, journeyId }),
     });
+    const data = await res.json();
+    setReport(data.report);
+    setTimeout(() => { setPhase('report'); runAi(); }, 1300);
   }
 
   async function next() {
-    await saveCurrent();
-    if (cur >= STAGES.length - 1) {
-      setPhase('building');
-      const res = await fetch('/api/generate-report', {
+    const stageId = STAGES[cur].id;
+
+    if (stageId === 6) {
+      await fetch('/api/save-answer', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, journeyId }),
+        body: JSON.stringify({ token, journeyId, stageId: 6, chips: [], freeText: draftText, questionText: curQ }),
       });
-      const data = await res.json();
-      setReport(data.report);
-      setTimeout(() => { setPhase('report'); runAi(); }, 1300);
+      finishToReport();
       return;
     }
-    setCur((c) => c + 1);
-  }
 
-  function prev() { saveCurrent(); setCur((c) => Math.max(0, c - 1)); }
+    setQState('submitting');
+    const res = await fetch('/api/station-answer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, journeyId, stageId, questionText: curQ, answerText: draftText }),
+    });
+    const data = await res.json();
+
+    if (data.done) {
+      setCur((c) => c + 1);
+      return;
+    }
+
+    setCurQ(data.question || 'حدثني أكثر عن هذا.');
+    setCurReflection(data.reflection || '');
+    setDraftText('');
+    setExchangeIndex((i) => i + 1);
+    setQState('ready');
+  }
 
   async function runAi() {
     setAiState('loading');
@@ -283,6 +292,7 @@ export default function StartPage() {
   }
 
   const stage = STAGES[cur];
+  const isFinal = stage.id === 6;
 
   return (
     <>
@@ -295,28 +305,34 @@ export default function StartPage() {
             <div key={s.id} className="dot" style={{ background: i < cur ? '#c6a15b' : i === cur ? '#0f2847' : '#e5e7eb' }} />
           ))}
         </div>
+        {!isFinal && <div className="subprogress">سؤال {exchangeIndex + 1} من {STATION_CAP} كحد أقصى بهذه المحطة</div>}
+
         <div className="card">
           <div className="kicker">{stage.kicker}</div>
           <div className="title">{stage.title}</div>
 
-          {qState === 'loading' && (
-            <div className="centersmall"><div className="spinnersm" />يعد سؤالك الآن…</div>
+          {(qState === 'loading' || qState === 'submitting') && (
+            <div className="centersmall"><div className="spinnersm" />{qState === 'loading' ? 'يعد سؤالك الآن…' : 'لحظة، يقرأ إجابتك…'}</div>
           )}
 
           {qState === 'ready' && (
             <>
-              {curQ.narrative && <div className="narrative">{curQ.narrative}</div>}
-              <div className="qtext">{curQ.question}</div>
+              {curReflection && <div className="reflectbubble">{curReflection}</div>}
+              <div className="qtext">{curQ}</div>
               <textarea
                 className="reflect"
-                style={{ minHeight: stage.id === 6 ? 170 : 110 }}
+                style={{ minHeight: isFinal ? 170 : 110 }}
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}
                 placeholder="اكتب بكلماتك…"
               />
+              {draftText.trim().length > 0 && draftText.trim().length < MIN_ANSWER_LENGTH && (
+                <div className="nudge">حاول تكتب أكثر شوي، حتى نقدر نفهم ما تقصده بعمق أكبر</div>
+              )}
               <div className="navrow">
-                {cur > 0 && <button className="btn outline" onClick={prev}>السابقة</button>}
-                <button className="btn solid" onClick={next}>{stage.id === 6 ? 'اعرض خريطتي' : 'التالية'}</button>
+                <button className="btn solid" disabled={draftText.trim().length < MIN_ANSWER_LENGTH} onClick={next}>
+                  {isFinal ? 'اعرض خريطتي' : 'التالية'}
+                </button>
               </div>
             </>
           )}
