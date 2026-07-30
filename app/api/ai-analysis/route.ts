@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { buildAiPrompt, StageAnswer } from '@/lib/reportEngine';
+import { buildAiPrompt, lifeStageFrom, finalAnswerFrom, StageAnswer, Summary } from '@/lib/reportEngine';
 
 export async function POST(req: NextRequest) {
   const { token, journeyId } = await req.json();
@@ -18,10 +18,16 @@ export async function POST(req: NextRequest) {
     .from('customers').select('id').eq('access_token', token).maybeSingle();
   if (!customer) return NextResponse.json({ ok: false, reason: 'رمز الوصول غير صالح' }, { status: 401 });
 
-  const { data: answers } = await supabaseAdmin
-    .from('journey_answers').select('stage_id, chips, free_text').eq('journey_id', journeyId);
+  const { data: summaryRows } = await supabaseAdmin
+    .from('station_summaries').select('stage_id, summary').eq('journey_id', journeyId);
+  const summaries = (summaryRows || []) as Summary[];
 
-  const prompt = buildAiPrompt((answers || []) as StageAnswer[]);
+  const { data: sideAnswers } = await supabaseAdmin
+    .from('journey_answers').select('stage_id, chips, free_text').eq('journey_id', journeyId).in('stage_id', [0, 6]);
+  const lifeStage = lifeStageFrom((sideAnswers || []) as StageAnswer[]);
+  const finalAnswer = finalAnswerFrom((sideAnswers || []) as StageAnswer[]);
+
+  const prompt = buildAiPrompt(summaries, finalAnswer, lifeStage);
 
   let response;
   try {
