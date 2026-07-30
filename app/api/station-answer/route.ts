@@ -54,11 +54,15 @@ export async function POST(req: NextRequest) {
     .from('journey_answers').select('stage_id, chips, free_text').eq('journey_id', journeyId).eq('stage_id', 0);
   const lifeStage = lifeStageFrom((lifeAnswers || []) as StageAnswer[]);
 
+  const { data: journeyRow } = await supabaseAdmin
+    .from('journeys').select('working_hypothesis').eq('id', journeyId).maybeSingle();
+  const workingHypothesis = journeyRow?.working_hypothesis || '';
+
   const { data: summaryRows } = await supabaseAdmin
     .from('station_summaries').select('stage_id, summary').eq('journey_id', journeyId);
   const priorSummaries = (summaryRows || []) as Summary[];
 
-  const prompt = buildStationTurnPrompt(stageId, exchanges, priorSummaries, lifeStage);
+  const prompt = buildStationTurnPrompt(stageId, exchanges, priorSummaries, lifeStage, workingHypothesis);
 
   try {
     const controller = new AbortController();
@@ -84,6 +88,9 @@ export async function POST(req: NextRequest) {
         { journey_id: journeyId, stage_id: stageId, summary },
         { onConflict: 'journey_id,stage_id' }
       );
+      if (parsed.hypothesis) {
+        await supabaseAdmin.from('journeys').update({ working_hypothesis: parsed.hypothesis }).eq('id', journeyId);
+      }
       return NextResponse.json({ ok: true, done: true, summary });
     }
 
