@@ -73,13 +73,25 @@ export async function POST(req: NextRequest) {
     journey = created;
   }
 
-  const { data: answers } = await supabaseAdmin
+  const { data: lifeAnswers } = await supabaseAdmin
     .from('journey_answers')
     .select('stage_id, chips, free_text, question_text')
+    .eq('journey_id', journey!.id)
+    .eq('stage_id', 0);
+
+  const { data: summaryRows } = await supabaseAdmin
+    .from('station_summaries')
+    .select('stage_id, summary')
     .eq('journey_id', journey!.id);
 
-  const answeredStages = (answers || []).filter((a) => a.stage_id > 0).length;
-  const resumeStage = Math.min(answeredStages, 5);
+  const doneStages = (summaryRows || []).map((s) => s.stage_id);
+  const resumeStage = Math.min(doneStages.length, 5);
 
-  return NextResponse.json({ ok: true, journeyId: journey!.id, answers: answers || [], resumeStage });
+  return NextResponse.json({
+    ok: true,
+    journeyId: journey!.id,
+    answers: lifeAnswers || [],
+    summaries: summaryRows || [],
+    resumeStage,
+  });
 }
