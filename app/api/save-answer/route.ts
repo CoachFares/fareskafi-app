@@ -1,46 +1,97 @@
-// يستقبل إجابة محطة واحدة ويحفظها، مع نص السؤال الذي عرض عليه فعلا (قد يكون
-// مولدا حيا بالذكاء الاصطناعي). يتأكد أولا إن رمز الوصول صحيح قبل أي حفظ.
+// يستقبل إجابة داخل محطة، يحفظها، ثم يقرر بالذكاء الاصطناعي: سؤال متابعة، أو إنهاء
+// المحطة بملخص واحد يحفظ في station_summaries. لو فشل الاتصال، ينهي المحطة بملخص
+// بسيط مبني على الإجابات كما هي، حتى لا تتوقف الرحلة أبدا.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { buildStationTurnPrompt, STATION_CAP, STAGES, lifeStageFrom, StageAnswer, Summary, Exchange } from '@/lib/reportEngine';
 
 export async function POST(req: NextRequest) {
-  const { token, journeyId, stageId, chips, freeText, questionText } = await req.json();
+  const { token, journeyId, stageId, questionText, answerText } = await req.json();
+
+  const stage = STAGES.find((s) => s.id === stageId);
+  if (!stage) return NextResponse.json({ ok: false, reason: 'محطة غير معروفة' }, { status: 400 });
 
   const { data: customer } = await supabaseAdmin
-    .from('customers')
-    .select('id')
-    .eq('access_token', token)
-    .maybeSingle();
+    .from('customers').select('id').eq('access_token', token).maybeSingle();
+  if (!customer) return NextResponse.json({ ok: false, reason: 'رمز الوصول غير صالح' }, { status: 401 });
 
-  if (!customer) {
-    return NextResponse.json({ ok: false, reason: 'invalid token' }, { status: 401 });
+  // نحفظ هذا التبادل أولا
+  const { data: existing } = await supabaseAdmin
+    .from('station_exchanges').select('exchange_index').eq('journey_id', journeyId).eq('stage_id', stageId);
+  const nextIndex = existing?.length || 0;
+
+  await supabaseAdmin.from('station_exchanges').insert({
+    journey_id: journeyId, stage_id: stageId, exchange_index: nextIndex,
+    question_text: questionText || '', answer_text: answerText || '',
+  });
+
+  const { data: exchangeRows } = await supabaseAdmin
+    .from('station_exchanges').select('question_text, answer_text').eq('journey_id', journeyId).eq('stage_id', stageId).order('exchange_index');
+  const exchanges: Exchange[] = (exchangeRows || []).map((e) => ({ question: e.question_text, answer: e.answer_text }));
+
+  const simpleSummaryFallback = () => exchanges.map((e) => e.answer).join(' ');
+
+  if (exchanges.length >= STATION_CAP) {
+    const summary = simpleSummaryFallback();
+    await supabaseAdmin.from('station_summaries').upsert(
+      { journey_id: journeyId, stage_id: stageId, summary },
+      { onConflict: 'journey_id,stage_id' }
+    );
+    return NextResponse.json({ ok: true, done: true, summary });
   }
 
-  // نتأكد إن هذه الرحلة فعلا تخص صاحب الرمز، لا رحلة عميل ثاني
-  const { data: journey } = await supabaseAdmin
-    .from('journeys')
-    .select('id')
-    .eq('id', journeyId)
-    .eq('customer_id', customer.id)
-    .maybeSingle();
-
-  if (!journey) {
-    return NextResponse.json({ ok: false, reason: 'journey not found' }, { status: 404 });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const summary = simpleSummaryFallback();
+    await supabaseAdmin.from('station_summaries').upsert(
+      { journey_id: journeyId, stage_id: stageId, summary },
+      { onConflict: 'journey_id,stage_id' }
+    );
+    return NextResponse.json({ ok: true, done: true, summary, reason: 'ANTHROPIC_API_KEY غير مضاف بعد' });
   }
 
-  const { error } = await supabaseAdmin.from('journey_answers').upsert(
-    {
-      journey_id: journeyId,
-      stage_id: stageId,
-      question_text: questionText || null,
-      chips: chips || [],
-      free_text: freeText || '',
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'journey_id,stage_id' }
-  );
+  const { data: lifeAnswers } = await supabaseAdmin
+    .from('journey_answers').select('stage_id, chips, free_text').eq('journey_id', journeyId).eq('stage_id', 0);
+  const lifeStage = lifeStageFrom((lifeAnswers || []) as StageAnswer[]);
 
-  if (error) return NextResponse.json({ ok: false, reason: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  const { data: summaryRows } = await supabaseAdmin
+    .from('station_summaries').select('stage_id, summary').eq('journey_id', journeyId);
+  const priorSummaries = (summaryRows || []) as Summary[];
+
+  const prompt = buildStationTurnPrompt(stageId, exchanges, priorSummaries, lifeStage);
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
+    });
+
+    if (!response.ok) throw new Error(`فشل الطلب (${response.status})`);
+
+    const data = await response.json();
+    const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('').trim();
+    const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    if (parsed.done) {
+      const summary = parsed.summary || simpleSummaryFallback();
+      await supabaseAdmin.from('station_summaries').upsert(
+        { journey_id: journeyId, stage_id: stageId, summary },
+        { onConflict: 'journey_id,stage_id' }
+      );
+      return NextResponse.json({ ok: true, done: true, summary });
+    }
+
+    if (!parsed.question) throw new Error('لا يوجد سؤال متابعة في الرد');
+    return NextResponse.json({ ok: true, done: false, reflection: parsed.reflection || '', question: parsed.question });
+  } catch (err) {
+    // أي خلل هنا: ننهي المحطة بأمان بدل ما نعلق العميل
+    const summary = simpleSummaryFallback();
+    await supabaseAdmin.from('station_summaries').upsert(
+      { journey_id: journeyId, stage_id: stageId, summary },
+      { onConflict: 'journey_id,stage_id' }
+    );
+    return NextResponse.json({ ok: true, done: true, summary, reason: String(err) });
+  }
 }
