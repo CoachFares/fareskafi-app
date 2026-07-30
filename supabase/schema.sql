@@ -1,6 +1,6 @@
 -- ============================================================
 -- قاعدة بيانات "خريطة الوعي بالعلاقة"
--- شغّل هذا الملف مرة واحدة داخل Supabase → SQL Editor → Run
+-- شغل هذا الملف مرة واحدة داخل Supabase → SQL Editor → Run
 -- ============================================================
 
 -- كل عملية شراء = عميل واحد، مربوط برمز وصول فريد (مو بريد وكلمة مرور)
@@ -21,13 +21,14 @@ create table journeys (
   completed_at timestamptz
 );
 
--- إجابة كل محطة من المحطات الست، مرتبطة برحلة معيّنة
+-- إجابة كل محطة من المحطات الست، مرتبطة برحلة معينة
 create table journey_answers (
   id uuid primary key default gen_random_uuid(),
   journey_id uuid references journeys(id) on delete cascade,
-  stage_id int not null,                  -- ١ إلى ٦
-  chips jsonb default '[]',               -- الكلمات المساعدة المختارة (إن وجدت)
-  free_text text default '',              -- كلمات العميل نفسه (لها الأولوية دائمًا)
+  stage_id int not null,                  -- ٠ لاختيار "أين أنت الآن"، ١ إلى ٦ للمحطات
+  question_text text,                     -- نص السؤال الذي ولده الذكاء الاصطناعي فعليا لهذه المحطة
+  chips jsonb default '[]',               -- محجوزة لاستخدام مستقبلي
+  free_text text default '',              -- كلمات العميل نفسه، لها الأولوية دائما
   updated_at timestamptz default now(),
   unique (journey_id, stage_id)
 );
@@ -37,7 +38,7 @@ create table reports (
   id uuid primary key default gen_random_uuid(),
   journey_id uuid references journeys(id) on delete cascade unique,
   report_html text not null,              -- خريطة الوعي بالعلاقة (النسخة الأساسية، بدون ذكاء اصطناعي)
-  ai_analysis text,                       -- التحليل الأعمق بالذكاء الاصطناعي (اختياري، يُطلب بضغطة زر)
+  ai_analysis text,                       -- التحليل الأعمق بالذكاء الاصطناعي (اختياري، يطلب بضغطة زر)
   ai_generated_at timestamptz,
   created_at timestamptz default now()
 );
