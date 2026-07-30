@@ -53,13 +53,10 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('').trim();
-    const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    let parsed;
-    try { parsed = JSON.parse(cleaned); }
-    catch { parsed = JSON.parse(cleaned.replace(/[\n\r\t]+/g, ' ')); }
-    if (!parsed.question) throw new Error('لا يوجد سؤال في الرد');
+    const question = raw.replace(/^["'«]+|["'»]+$/g, '').trim();
+    if (!question) throw new Error('رد فارغ من النموذج');
 
-    return NextResponse.json({ ok: true, question: parsed.question, source: 'ai' });
+    return NextResponse.json({ ok: true, question, source: 'ai' });
   } catch (err) {
     return NextResponse.json({ ok: true, ...fallback, reason: 'تعذر توليد سؤال حي: ' + String(err) });
   }
