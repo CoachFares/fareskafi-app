@@ -1,6 +1,8 @@
 // يستخدم فقط للمحطة السادسة (الجواب) — السؤال المفتوح الأخير الوحيد في الرحلة كلها.
 // المحطات ١ إلى ٥ تستخدم /api/station-open و /api/station-answer بدلا منه.
 
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { buildFinalQuestionPrompt, STAGES, lifeStageFrom, StageAnswer, Summary } from '@/lib/reportEngine';
