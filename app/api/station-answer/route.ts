@@ -79,25 +79,32 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const raw = (data.content || []).map((b: { text?: string }) => b.text || '').join('').trim();
-    const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    let parsed;
-    try { parsed = JSON.parse(cleaned); }
-    catch { parsed = JSON.parse(cleaned.replace(/[\n\r\t]+/g, ' ')); }
 
-    if (parsed.done) {
-      const summary = parsed.summary || simpleSummaryFallback();
+    const grab = (label: string): string => {
+      const re = new RegExp(label + ':\\s*([^\\n]*(?:\\n(?!(?:DONE|REFLECTION|QUESTION|SUMMARY|HYPOTHESIS):)[^\\n]*)*)', 'i');
+      const m = raw.match(re);
+      return m ? m[1].trim() : '';
+    };
+
+    const isDone = /DONE:\s*true/i.test(raw);
+
+    if (isDone) {
+      const summary = grab('SUMMARY') || simpleSummaryFallback();
+      const hypothesis = grab('HYPOTHESIS');
       await supabaseAdmin.from('station_summaries').upsert(
         { journey_id: journeyId, stage_id: stageId, summary },
         { onConflict: 'journey_id,stage_id' }
       );
-      if (parsed.hypothesis) {
-        await supabaseAdmin.from('journeys').update({ working_hypothesis: parsed.hypothesis }).eq('id', journeyId);
+      if (hypothesis) {
+        await supabaseAdmin.from('journeys').update({ working_hypothesis: hypothesis }).eq('id', journeyId);
       }
       return NextResponse.json({ ok: true, done: true, summary });
     }
 
-    if (!parsed.question) throw new Error('لا يوجد سؤال متابعة في الرد');
-    return NextResponse.json({ ok: true, done: false, reflection: parsed.reflection || '', question: parsed.question });
+    const question = grab('QUESTION');
+    const reflection = grab('REFLECTION');
+    if (!question) throw new Error('لا يوجد سؤال متابعة في الرد');
+    return NextResponse.json({ ok: true, done: false, reflection, question });
   } catch (err) {
     // أي خلل هنا: ننهي المحطة بأمان بدل ما نعلق العميل
     const summary = simpleSummaryFallback();
