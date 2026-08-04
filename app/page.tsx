@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, createElement as h } from 'react';
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
@@ -23,43 +23,39 @@ body { background:#f3f4f6; margin:0; }
 `;
 
 export default function Home() {
-    const [code, setCode] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+      const [code, setCode] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
 
   function submit() {
-        const trimmed = code.trim();
-        if (!trimmed) { setError('الرجاء إدخال رمز الوصول'); return; }
-        setError('');
-        setLoading(true);
-        window.location.href = `/start?token=${encodeURIComponent(trimmed)}`;
+          const trimmed = code.trim();
+          if (!trimmed) { setError('الرجاء إدخال رمز الوصول'); return; }
+          setError('');
+          setLoading(true);
+          window.location.href = '/start?token=' + encodeURIComponent(trimmed);
   }
 
-  return (
-        <>
-              <style>{CSS}</style>style>
-              <div className="landing">
-                      <div className="eyebrow">HS–01</div>div>
-                      <div className="h1">جوابك الشخصي</div>div>
-                      <div className="sub">لماذا تؤلمني علاقاتي؟ — رحلة تأملية شخصية تأخذك عبر ست محطات لفهم النمط الذي يتكرر معك في علاقاتك.</div>div>
-                      <div className="card">
-                                <div className="label">رمز الوصول الخاص بك</div>div>
-                                <input
-                                              className="input"
-                                              placeholder="الصق الرمز الذي وصلك بالبريد الإلكتروني"
-                                              value={code}
-                                              onChange={(e) => setCode(e.target.value)}
-                                              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-                                              dir="ltr"
-                                              style={{ textAlign: 'left' }}
-                                            />
-                        {error && <div className="err">{error}</div>div>}
-                                <button className="btn" onClick={submit} disabled={loading}>{loading ? 'يجري الدخول الآن…' : 'ابدأ رحلتك'}</button>button>
-                                <div className="hint">لم تستلم الرمز؟ تحقق من بريدك الإلكتروني بعد إتمام الشراء، أو راجع مجلد الرسائل غير المرغوب فيها.</div>div>
-                      </div>div>
-                      <div className="rights">جميع الحقوق محفوظة للكوتش فارس كافي © {new Date().getFullYear()}</div>div>
-              </div>div>
-        </>>
-      );
+  return h('div', { className: 'landing' },
+               h('style', null, CSS),
+               h('div', { className: 'eyebrow' }, 'HS\u201301'),
+               h('div', { className: 'h1' }, '\u062c\u0648\u0627\u0628\u0643 \u0627\u0644\u0634\u062e\u0635\u064a'),
+               h('div', { className: 'sub' }, '\u0644\u0645\u0627\u0630\u0627 \u062a\u0624\u0644\u0645\u0646\u064a \u0639\u0644\u0627\u0642\u0627\u062a\u064a\u061f \u2014 \u0631\u062d\u0644\u0629 \u062a\u0623\u0645\u0644\u064a\u0629 \u0634\u062e\u0635\u064a\u0629 \u062a\u0623\u062e\u0630\u0643 \u0639\u0628\u0631 \u0633\u062a \u0645\u062d\u0637\u0627\u062a \u0644\u0641\u0647\u0645 \u0627\u0644\u0646\u0645\u0637 \u0627\u0644\u0630\u064a \u064a\u062a\u0643\u0631\u0631 \u0645\u0639\u0643 \u0641\u064a \u0639\u0644\u0627\u0642\u0627\u062a\u0643.'),
+               h('div', { className: 'card' },
+                       h('div', { className: 'label' }, '\u0631\u0645\u0632 \u0627\u0644\u0648\u0635\u0648\u0644 \u0627\u0644\u062e\u0627\u0635 \u0628\u0643'),
+                       h('input', {
+                                   className: 'input',
+                                   placeholder: '\u0627\u0644\u0635\u0642 \u0627\u0644\u0631\u0645\u0632 \u0627\u0644\u0630\u064a \u0648\u0635\u0644\u0643 \u0628\u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a',
+                                   value: code,
+                                   onChange: (e) => setCode(e.target.value),
+                                   onKeyDown: (e) => { if (e.key === 'Enter') submit(); },
+                                   dir: 'ltr',
+                                   style: { textAlign: 'left' },
+                       }),
+                       error ? h('div', { className: 'err' }, error) : null,
+                       h('button', { className: 'btn', onClick: submit, disabled: loading },
+                                 loading ? '\u064a\u062c\u0631\u064a \u0627\u0644\u062f\u062e\u0648\u0644 \u0627\u0644\u0622\u0646\u2026' : '\u0627\u0628\u062f\u0623 \u0631\u062d\u0644\u062a\u0643'),
+                       h('div', { className: 'hint' }, '\u0644\u0645 \u062a\u0633\u062a\u0644\u0645 \u0627\u0644\u0631\u0645\u0632\u061f \u062a\u062d\u0642\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f\u0643 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0628\u0639\u062f \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u0634\u0631\u0627\u0621\u060c \u0623\u0648 \u0631\u0627\u062c\u0639 \u0645\u062c\u0644\u062f \u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u063a\u064a\u0631 \u0627\u0644\u0645\u0631\u063a\u0648\u0628 \u0641\u064a\u0647\u0627.')
+                     ),
+               h('div', { className: 'rights' }, '\u062c\u0645\u064a\u0639 \u0627\u0644\u062d\u0642\u0648\u0642 \u0645\u062d\u0641\u0648\u0638\u0629 \u0644\u0644\u0643\u0648\u062a\u0634 \u0641\u0627\u0631\u0633 \u0643\u0627\u0641\u064a \u00a9 ' + new Date().getFullYear())
+             );
 }
-</>
